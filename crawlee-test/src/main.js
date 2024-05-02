@@ -1,26 +1,65 @@
-// For more information, see https://crawlee.dev/
-import { PlaywrightCrawler } from 'crawlee';
+// https://crawlee.dev/docs/examples/basic-crawler
+import { Dataset, PuppeteerCrawler } from 'crawlee';
 
-// PlaywrightCrawler crawls the web using a headless
-// browser controlled by the Playwright library.
-const crawler = new PlaywrightCrawler({
-    // Use the requestHandler to process each of the crawled pages.
-    async requestHandler({ request, page, enqueueLinks, log, pushData }) {
-        const title = await page.title();
-        log.info(`Title of ${request.loadedUrl} is '${title}'`);
-
-        // Save results as JSON to ./storage/datasets/default
-        await pushData({ title, url: request.loadedUrl });
-
-        // Extract links from the current page
-        // and add them to the crawling queue.
-        await enqueueLinks();
+// Create an instance of the PuppeteerCrawler class - a crawler
+// that automatically loads the URLs in headless Chrome / Puppeteer.
+const crawler = new PuppeteerCrawler({
+    // Here you can set options that are passed to the launchPuppeteer() function.
+    launchContext: {
+        launchOptions: {
+            headless: true,
+            // Other Puppeteer options
+        },
     },
-    // Comment this option to scrape the full website.
-    maxRequestsPerCrawl: 20,
-    // Uncomment this option to see the browser window.
-    // headless: false,
+
+    // Stop crawling after several pages
+    maxRequestsPerCrawl: 50,
+
+    // This function will be called for each URL to crawl.
+    // Here you can write the Puppeteer scripts you are familiar with,
+    // with the exception that browsers and pages are automatically managed by Crawlee.
+    // The function accepts a single parameter, which is an object with the following fields:
+    // - request: an instance of the Request class with information such as URL and HTTP method
+    // - page: Puppeteer's Page object (see https://pptr.dev/#show=api-class-page)
+    async requestHandler({ request, page, enqueueLinks, log }) {
+        log.info(`Processing ${request.url}...`);
+
+        // A function to be evaluated by Puppeteer within the browser context.
+        const data = await page.$$eval('.kib-product-card', ($posts) => {
+            const scrapedData = [];
+
+            // We're getting the title, rank and URL of each post on Hacker News.
+            $posts.forEach(($post) => {
+                scrapedData.push({
+                    title: $post.querySelector('.kib-product-card__content .kib-product-title__text strong').innerText,
+                    // rank: $post.querySelector('.rank').innerText,
+                    // href: $post.querySelector('.title a').href,
+                });
+            });
+
+            return scrapedData;
+        });
+
+        // Store the results to the default dataset.
+        await Dataset.pushData(data);
+
+        // Find a link to the next page and enqueue it if it exists.
+        const infos = await enqueueLinks({
+            selector: '.morelink',
+        });
+
+        if (infos.processedRequests.length === 0) log.info(`${request.url} is the last page!`);
+    },
+
+    // This function is called if the page processing failed more than maxRequestRetries+1 times.
+    failedRequestHandler({ request, log }) {
+        log.error(`Request ${request.url} failed too many times.`);
+    },
 });
 
-// Add first URL to the queue and start the crawl.
-await crawler.run(['https://crawlee.dev']);
+await crawler.addRequests(['https://www.chewy.com/b/food-332']);
+
+// Run the crawler and wait for it to finish.
+await crawler.run();
+
+console.log('Crawler finished.');

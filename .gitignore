@@ -1,0 +1,9 @@
+# This file tells Git which files shouldn't be added to source control
+
+crawlee-test/.idea
+crawlee-test/dist
+crawlee-test/node_modules
+crawlee-test/apify_storage
+crawlee-test/crawlee_storage
+crawlee-test/storage
+crawlee-test/chromium

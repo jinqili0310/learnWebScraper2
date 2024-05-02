@@ -4,8 +4,9 @@
     "type": "module",
     "description": "This is an example of a Crawlee project.",
     "dependencies": {
-        "crawlee": "^3.0.0",
-        "playwright": "*"
+        "crawlee": "^3.9.2",
+        "playwright": "^1.43.1",
+        "puppeteer": "^22.7.1"
     },
     "scripts": {
         "start": "node src/main.js",
